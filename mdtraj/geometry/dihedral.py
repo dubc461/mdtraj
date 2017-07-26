@@ -32,9 +32,9 @@ from mdtraj.geometry import _geometry, distance
 import warnings
 
 __all__ = ['compute_dihedrals', 'compute_phi', 'compute_psi', 'compute_omega',
-           'compute_chi1', 'compute_chi2', 'compute_chi3', 'compute_chi4',
+           'compute_chi1', 'compute_chi2', 'compute_chi3', 'compute_chi4', 'compute_chi5', 'compute_chi6',
            'indices_phi', 'indices_psi', 'indices_omega',
-           'indices_chi1', 'indices_chi2', 'indices_chi3', 'indices_chi4']
+           'indices_chi1', 'indices_chi2', 'indices_chi3', 'indices_chi4', 'indices_chi5', 'indices_chi6']
 
 ##############################################################################
 # Functions
@@ -294,26 +294,80 @@ PHI_ATOMS = ["-C", "N", "CA", "C"]
 PSI_ATOMS = ["N", "CA", "C", "+N"]
 OMEGA_ATOMS = ["CA", "C", "+N", "+CA"]
 
+#NCACBCG2 "N", "CA", "CB", "CG1"
 CHI1_ATOMS = [["N", "CA", "CB", "CG"],
               ["N", "CA", "CB", "CG1"],
               ["N", "CA", "CB", "SG"],
               ["N", "CA", "CB", "OG"],
-              ["N", "CA", "CB", "OG1"]]
+              ["N", "CA", "CB", "OG1"],
 
+              ["N", "CA", "CB", "HB1"]]
+
+#CACBCGCD2 "CA", "CB", "CG", "CD1" PHE
+#CACBCGND2 ["CA", "CB", "CG", "OD1"] ASN
 CHI2_ATOMS = [["CA", "CB", "CG", "CD"],
               ["CA", "CB", "CG", "CD1"],
               ["CA", "CB", "CG1", "CD1"],
               ["CA", "CB", "CG", "OD1"],
               ["CA", "CB", "CG", "ND1"],
-              ["CA", "CB", "CG", "SD"]]
+              ["CA", "CB", "CG", "SD"],
+
+              ["CA", "CB", "OG", "HG"],
+              ["CA", "CB", "SG", "HG"],
+              ["CA", "CB", "CG1", "HG11"],
+              ["CA", "CB", "CG2", "HG21"]]
+
+#CACBCGND2 ["CA", "CB", "CG", "OD1"] ASN
+#CB CG CD NE2 ["CB", "CG", "CD", "OE1"] GLN
+#ADD HIE  CB CG ND1 CE1
+#ADD PHE CB CG CD1 CE1
+#ADD TRP CB CG CD2 CE3
+#ADD LEU CB CG CD1 HD11
+#ADD ILE CB CG1 CD1 HD11
 
 CHI3_ATOMS = [["CB", "CG", "CD", "NE"],
               ["CB", "CG", "CD", "CE"],
               ["CB", "CG", "CD", "OE1"],
-              ["CB", "CG", "SD", "CE"]]
+              ["CB", "CG", "SD", "CE"],
+
+              ["CB", "CG", "ND1", "CE1"],
+              ["CB", "CG", "CD1", "CE1"],
+              ["CB", "CG", "CD2", "CE3"],
+
+              ["CB", "CG", "CD1", "HD11"],
+              ["CB", "CG", "ND2", "HD21"],
+              ["CB", "CG1", "CD1", "HD11"]
+              ]
+#ADD CGCD1CE1CZ PHE TYR
+#ADD CGCD2CE3CZ3 TRP
+#ADD CGND1CE1NE2 HIE
+#ADD CGSDCEHE1 MET
+#ADD CGCDNE2HE21 GLN
 
 CHI4_ATOMS = [["CG", "CD", "NE", "CZ"],
-              ["CG", "CD", "CE", "NZ"]]
+              ["CG", "CD", "CE", "NZ"],
+
+              ["CG", "CD1","CE1","CZ"],
+              ["CG", "CD2","CE3","CZ3"],
+              ["CG", "ND1","CE1","NE2"],
+
+              ["CG", "SD", "CE", "HE1"],
+              ["CG", "CD", "NE2", "HE21"]]
+
+CHI5_ATOMS = [["CD1", "CE1", "CZ", "HZ"],
+              ["CD1", "CE1", "CZ", "OH"],
+              ["CD2", "CE3", "CZ3","CH2"],
+              ["CD" , "CE",  "NZ", "HZ1"],
+              ["CD" , "NE",  "CZ", "NH2"],
+              ["ND1", "CE1", "NE2","CD2"]]
+
+
+CHI6_ATOMS = [["CG", "CD", "NE", "CZ"],
+              ["CG", "CD", "CE", "NZ"],
+              ["CE1","CZ","OH","HH"],
+              ["CE1","NE2","CD2","HD2"],
+              ["CE3","CZ3","CH2","HH2"],
+              ["NE","CZ","NH2","HH21"]]
 
 
 def indices_phi(top):
@@ -435,6 +489,38 @@ def indices_chi4(top):
         The indices of the atoms involved in each of ths chi4 angles
     """
     return _indices_chi(top, CHI4_ATOMS)
+
+
+def indices_chi5(top):
+    """Calculate indices for chi5 dihedral angles
+
+    Parameters
+    ----------
+    top : Topology
+        Topology for which you want dihedral indices
+
+    Returns
+    -------
+    indices : np.ndarray, shape=(n_chi5, 4)
+        The indices of the atoms involved in each of ths chi5 angles
+    """
+    return _indices_chi(top, CHI5_ATOMS)
+
+
+def indices_chi6(top):
+    """Calculate indices for chi6 dihedral angles
+
+    Parameters
+    ----------
+    top : Topology
+        Topology for which you want dihedral indices
+
+    Returns
+    -------
+    indices : np.ndarray, shape=(n_chi6, 4)
+        The indices of the atoms involved in each of ths chi4 angles
+    """
+    return _indices_chi(top, CHI6_ATOMS)
 
 
 def compute_phi(traj, periodic=True, opt=True):
@@ -610,6 +696,66 @@ def compute_chi4(traj, periodic=True, opt=True):
         the frames.
     """
     indices = indices_chi4(traj.topology)
+    if len(indices) == 0:
+        return indices, np.empty(shape=(len(traj), 0), dtype=np.float32)
+    all_chi = compute_dihedrals(traj, indices, periodic=periodic, opt=opt)
+    return indices, all_chi
+
+def compute_chi5(traj, periodic=True, opt=True):
+    """Calculate the chi5torsions of a trajectory. chi5 is the fifth side chain torsion angle
+    formed between the corresponding 4 atoms over the CD-CE or CD-NE axis
+    (only ARG & LYS residues have these atoms)
+
+    Parameters
+    ----------
+    traj : Trajectory
+        Trajectory for which you want dihedrals.
+    periodic : bool, default=True
+        If `periodic` is True and the trajectory contains unitcell
+        information, we will treat dihedrals that cross periodic images
+        using the minimum image convention.
+    opt : bool, default=True
+        Use an optimized native library to calculate angles.
+
+    Returns
+    -------
+    indices : np.ndarray, shape=(n_chi, 4)
+        The indices of the atoms involved in each of the chi dihedral angles
+    angles : np.ndarray, shape=(n_frames, n_chi)
+        The value of the dihedral angle for each of the angles in each of
+        the frames.
+    """
+    indices = indices_chi5(traj.topology)
+    if len(indices) == 0:
+        return indices, np.empty(shape=(len(traj), 0), dtype=np.float32)
+    all_chi = compute_dihedrals(traj, indices, periodic=periodic, opt=opt)
+    return indices, all_chi
+
+def compute_chi6(traj, periodic=True, opt=True):
+    """Calculate the chi6 torsions of a trajectory. chi6 is the sixth side chain torsion angle
+    formed between the corresponding 4 atoms over the CD-CE or CD-NE axis
+    (only ARG & LYS residues have these atoms)
+
+    Parameters
+    ----------
+    traj : Trajectory
+        Trajectory for which you want dihedrals.
+    periodic : bool, default=True
+        If `periodic` is True and the trajectory contains unitcell
+        information, we will treat dihedrals that cross periodic images
+        using the minimum image convention.
+    opt : bool, default=True
+        Use an optimized native library to calculate angles.
+
+    Returns
+    -------
+    indices : np.ndarray, shape=(n_chi, 4)
+        The indices of the atoms involved in each of the chi dihedral angles
+    angles : np.ndarray, shape=(n_frames, n_chi)
+        The value of the dihedral angle for each of the angles in each of
+        the frames.
+    """
+    indices = indices_chi6(traj.topology)
     if len(indices) == 0:
         return indices, np.empty(shape=(len(traj), 0), dtype=np.float32)
     all_chi = compute_dihedrals(traj, indices, periodic=periodic, opt=opt)
